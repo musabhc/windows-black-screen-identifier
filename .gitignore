@@ -1,0 +1,13 @@
+bin/
+obj/
+.vs/
+.dotnet/
+.nuget/
+artifacts/
+publish/
+*.user
+*.suo
+*.cache
+*.zip
+*.log
+src/**/Properties/launchSettings.json

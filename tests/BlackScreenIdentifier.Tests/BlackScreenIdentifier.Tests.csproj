@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\src\BlackScreenIdentifier.Core\**\*.cs"
+             Exclude="..\..\src\BlackScreenIdentifier.Core\bin\**\*;..\..\src\BlackScreenIdentifier.Core\obj\**\*"
+             LinkBase="Linked\Core" />
+    <Compile Include="..\..\src\BlackScreenIdentifier.Rules\**\*.cs"
+             Exclude="..\..\src\BlackScreenIdentifier.Rules\bin\**\*;..\..\src\BlackScreenIdentifier.Rules\obj\**\*"
+             LinkBase="Linked\Rules" />
+    <Compile Include="..\..\src\BlackScreenIdentifier.Actions\**\*.cs"
+             Exclude="..\..\src\BlackScreenIdentifier.Actions\bin\**\*;..\..\src\BlackScreenIdentifier.Actions\obj\**\*"
+             LinkBase="Linked\Actions" />
+  </ItemGroup>
+
+</Project>

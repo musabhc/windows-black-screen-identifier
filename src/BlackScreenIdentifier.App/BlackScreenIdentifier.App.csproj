@@ -1,0 +1,28 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>BlackScreenIdentifier.App</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="System.IO" />
+    <Using Include="System.Net.Http" />
+
+    <Compile Include="..\BlackScreenIdentifier.Core\**\*.cs"
+             Exclude="..\BlackScreenIdentifier.Core\bin\**\*;..\BlackScreenIdentifier.Core\obj\**\*"
+             LinkBase="Linked\Core" />
+    <Compile Include="..\BlackScreenIdentifier.Diagnostics\**\*.cs"
+             Exclude="..\BlackScreenIdentifier.Diagnostics\bin\**\*;..\BlackScreenIdentifier.Diagnostics\obj\**\*"
+             LinkBase="Linked\Diagnostics" />
+    <Compile Include="..\BlackScreenIdentifier.Rules\**\*.cs"
+             Exclude="..\BlackScreenIdentifier.Rules\bin\**\*;..\BlackScreenIdentifier.Rules\obj\**\*"
+             LinkBase="Linked\Rules" />
+    <Compile Include="..\BlackScreenIdentifier.Actions\**\*.cs"
+             Exclude="..\BlackScreenIdentifier.Actions\bin\**\*;..\BlackScreenIdentifier.Actions\obj\**\*"
+             LinkBase="Linked\Actions" />
+  </ItemGroup>
+
+</Project>

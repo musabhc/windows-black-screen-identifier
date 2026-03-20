@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  build-test:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore libraries
+        run: |
+          dotnet restore src/BlackScreenIdentifier.Core/BlackScreenIdentifier.Core.csproj
+          dotnet restore src/BlackScreenIdentifier.Diagnostics/BlackScreenIdentifier.Diagnostics.csproj
+          dotnet restore src/BlackScreenIdentifier.Rules/BlackScreenIdentifier.Rules.csproj
+          dotnet restore src/BlackScreenIdentifier.Actions/BlackScreenIdentifier.Actions.csproj
+          dotnet restore src/BlackScreenIdentifier.App/BlackScreenIdentifier.App.csproj
+          dotnet restore tests/BlackScreenIdentifier.Tests/BlackScreenIdentifier.Tests.csproj
+
+      - name: Build libraries
+        run: |
+          dotnet build src/BlackScreenIdentifier.Core/BlackScreenIdentifier.Core.csproj --configuration Release --no-restore
+          dotnet build src/BlackScreenIdentifier.Diagnostics/BlackScreenIdentifier.Diagnostics.csproj --configuration Release --no-restore
+          dotnet build src/BlackScreenIdentifier.Rules/BlackScreenIdentifier.Rules.csproj --configuration Release --no-restore
+          dotnet build src/BlackScreenIdentifier.Actions/BlackScreenIdentifier.Actions.csproj --configuration Release --no-restore
+          dotnet build src/BlackScreenIdentifier.App/BlackScreenIdentifier.App.csproj --configuration Release --no-restore
+          dotnet build tests/BlackScreenIdentifier.Tests/BlackScreenIdentifier.Tests.csproj --configuration Release --no-restore
+
+      - name: Run tests
+        run: dotnet run --project tests/BlackScreenIdentifier.Tests/BlackScreenIdentifier.Tests.csproj --configuration Release --no-build

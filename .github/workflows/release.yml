@@ -1,0 +1,73 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  publish:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore app and tests
+        run: |
+          dotnet restore src/BlackScreenIdentifier.App/BlackScreenIdentifier.App.csproj
+          dotnet restore tests/BlackScreenIdentifier.Tests/BlackScreenIdentifier.Tests.csproj
+
+      - name: Build and test
+        run: |
+          dotnet build src/BlackScreenIdentifier.App/BlackScreenIdentifier.App.csproj --configuration Release --no-restore
+          dotnet build tests/BlackScreenIdentifier.Tests/BlackScreenIdentifier.Tests.csproj --configuration Release --no-restore
+          dotnet run --project tests/BlackScreenIdentifier.Tests/BlackScreenIdentifier.Tests.csproj --configuration Release --no-build
+
+      - name: Publish portable app
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart("v")
+          dotnet publish src/BlackScreenIdentifier.App/BlackScreenIdentifier.App.csproj `
+            -c Release `
+            -r win-x64 `
+            --self-contained true `
+            /p:PublishSingleFile=true `
+            /p:Version=$version `
+            -o artifacts/publish
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup --no-progress -y
+
+      - name: Build installer
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart("v")
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$version" "installer\BlackScreenIdentifier.iss"
+
+      - name: Create zip and checksums
+        shell: pwsh
+        run: |
+          Compress-Archive -Path artifacts/publish/* -DestinationPath artifacts/BlackScreenIdentifier-win-x64-portable.zip -Force
+          $portable = "artifacts/BlackScreenIdentifier-win-x64-portable.zip"
+          $installer = Get-ChildItem artifacts/installer/*.exe | Select-Object -First 1 -ExpandProperty FullName
+          Get-FileHash $portable, $installer -Algorithm SHA256 |
+            ForEach-Object { "$($_.Hash)  $(Split-Path $_.Path -Leaf)" } |
+            Set-Content artifacts/SHA256SUMS.txt
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/BlackScreenIdentifier-win-x64-portable.zip
+            artifacts/installer/*.exe
+            artifacts/SHA256SUMS.txt
+          generate_release_notes: true
