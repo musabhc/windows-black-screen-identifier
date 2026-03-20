@@ -4,6 +4,8 @@ using System.Net.Http;
 using System.Text;
 using BlackScreenIdentifier.Actions.Actions;
 using BlackScreenIdentifier.Actions.Infrastructure;
+using BlackScreenIdentifier.App.ViewModels;
+using BlackScreenIdentifier.Core.Enums;
 using BlackScreenIdentifier.Core.Models;
 using BlackScreenIdentifier.Core.Services;
 using BlackScreenIdentifier.Tests.Fixtures;
@@ -17,6 +19,10 @@ var tests = new List<(string Name, Func<Task> Run)>
     ("Analyzer surfaces recovery and MediaTek findings", AnalyzerSurfacesRecoveryAndMediaTekFindingsAsync),
     ("Capture cleanup replaces arm action when capture is active", RemediationCatalogSwitchesToCleanupWhenCaptureArmedAsync),
     ("Update service parses GitHub release payload", UpdateServiceParsesReleasePayloadAsync),
+    ("Update service maps 404 to NoPublishedRelease", UpdateServiceMapsNotFoundToNoPublishedReleaseAsync),
+    ("Update service maps 500 to Failed", UpdateServiceMapsServerErrorToFailedAsync),
+    ("Incident projection uses primary finding", IncidentProjectionUsesPrimaryFindingAsync),
+    ("MainViewModel enables export after initialize", MainViewModelEnablesExportAfterInitializeAsync),
     ("Export bundle creates zip with session payload", ExportBundleCreatesZipAsync)
 };
 
@@ -108,10 +114,10 @@ static Task RemediationCatalogSwitchesToCleanupWhenCaptureArmedAsync()
 
 static async Task UpdateServiceParsesReleasePayloadAsync()
 {
-    using var client = new HttpClient(new StubHttpMessageHandler("""
+    using var client = new HttpClient(new StubHttpMessageHandler(HttpStatusCode.OK, """
         {
           "tag_name": "v1.2.3",
-          "html_url": "https://github.com/musabhc/windows-black-screen-identifier/releases/tag/v1.2.3"
+          "html_url": "https://github.com/musabhc/black-screen-identifier/releases/tag/v1.2.3"
         }
         """))
     {
@@ -123,6 +129,86 @@ static async Task UpdateServiceParsesReleasePayloadAsync()
 
     Assert(result.LatestVersion == "1.2.3", "latest version should be parsed.");
     Assert(result.Status == BlackScreenIdentifier.Core.Enums.UpdateCheckStatus.UpdateAvailable, "status should be UpdateAvailable for a newer release.");
+}
+
+static async Task UpdateServiceMapsNotFoundToNoPublishedReleaseAsync()
+{
+    using var client = new HttpClient(new StubHttpMessageHandler(HttpStatusCode.NotFound, "{}"))
+    {
+        BaseAddress = new Uri("https://api.github.com/")
+    };
+
+    var service = new GitHubReleaseService(client);
+    var result = await service.CheckAsync(CancellationToken.None).ConfigureAwait(false);
+
+    Assert(result.Status == UpdateCheckStatus.NoPublishedRelease, "404 should map to NoPublishedRelease.");
+    Assert(result.StatusMessage == "Henüz yayınlanmış stable sürüm yok.", "404 should use friendly beta message.");
+    Assert(result.LastHttpStatusCode == 404, "404 status code should be preserved.");
+}
+
+static async Task UpdateServiceMapsServerErrorToFailedAsync()
+{
+    using var client = new HttpClient(new StubHttpMessageHandler(HttpStatusCode.InternalServerError, "{}"))
+    {
+        BaseAddress = new Uri("https://api.github.com/")
+    };
+
+    var service = new GitHubReleaseService(client);
+    var result = await service.CheckAsync(CancellationToken.None).ConfigureAwait(false);
+
+    Assert(result.Status == UpdateCheckStatus.Failed, "500 should map to Failed.");
+    Assert(!result.StatusMessage.Contains("Response status code", StringComparison.OrdinalIgnoreCase), "500 should not surface raw exception text.");
+}
+
+static Task IncidentProjectionUsesPrimaryFindingAsync()
+{
+    var session = new DiagnosticSessionRecord
+    {
+        CreatedAt = new DateTimeOffset(2026, 03, 20, 10, 30, 00, TimeSpan.Zero),
+        Snapshot = SnapshotFixtures.CreateAehdHeavySnapshot(),
+        Findings = new DiagnosticAnalyzer().Analyze(SnapshotFixtures.CreateAehdHeavySnapshot()).ToList()
+    };
+
+    var item = IncidentListItemViewModel.FromSession(session);
+
+    Assert(!string.IsNullOrWhiteSpace(item.PrimaryFinding), "incident list should surface a primary finding title.");
+    Assert(item.PrimaryFinding != "Henüz birincil aday yok", "incident list should not fall back to the empty primary finding label.");
+    Assert(item.StatusLabel.Contains("Güven", StringComparison.OrdinalIgnoreCase), "incident list should contain confidence label.");
+    return Task.CompletedTask;
+}
+
+static async Task MainViewModelEnablesExportAfterInitializeAsync()
+{
+    var store = new FakeStateStore(Path.Combine(Path.GetTempPath(), "BlackScreenIdentifier.Tests", Guid.NewGuid().ToString("N")));
+    try
+    {
+        var viewModel = new MainViewModel(
+            new FakeCollector(SnapshotFixtures.CreateAehdHeavySnapshot()),
+            new DiagnosticAnalyzer(),
+            new RemediationService(store, new ProcessRunner()),
+            store,
+            new StubUpdateService(new VersionInfo
+            {
+                CurrentVersion = "0.1.0",
+                LatestVersion = "0.1.0",
+                Status = UpdateCheckStatus.NoPublishedRelease,
+                StatusMessage = "Henüz yayınlanmış stable sürüm yok."
+            }),
+            new ExportBundleService(store));
+
+        await viewModel.InitializeAsync().ConfigureAwait(false);
+
+        Assert(viewModel.ExportBundleCommand.CanExecute(null), "export command should be enabled after the first session is loaded.");
+        Assert(viewModel.SelectedIncidentItem is not null, "a selected incident should exist after initialize.");
+        Assert(viewModel.UpdateStatusText == "Henüz yayınlanmış stable sürüm yok.", "friendly no-release message should be visible in the view model.");
+    }
+    finally
+    {
+        if (Directory.Exists(store.DataRoot))
+        {
+            Directory.Delete(store.DataRoot, recursive: true);
+        }
+    }
 }
 
 static async Task ExportBundleCreatesZipAsync()
@@ -222,11 +308,29 @@ file sealed class FakeStateStore : IApplicationStateStore
     }
 }
 
-file sealed class StubHttpMessageHandler(string content) : HttpMessageHandler
+file sealed class FakeCollector(DiagnosticSnapshot snapshot) : IDiagnosticCollector
+{
+    public Task<DiagnosticSnapshot> CollectAsync(SnapshotCollectionLevel level, CancellationToken cancellationToken)
+    {
+        snapshot.CollectionLevel = level;
+        snapshot.CapturedAt = DateTimeOffset.Now;
+        return Task.FromResult(snapshot);
+    }
+}
+
+file sealed class StubUpdateService(VersionInfo versionInfo) : IUpdateService
+{
+    public Task<VersionInfo> CheckAsync(CancellationToken cancellationToken)
+    {
+        return Task.FromResult(versionInfo);
+    }
+}
+
+file sealed class StubHttpMessageHandler(HttpStatusCode statusCode, string content) : HttpMessageHandler
 {
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
-        var response = new HttpResponseMessage(HttpStatusCode.OK)
+        var response = new HttpResponseMessage(statusCode)
         {
             Content = new StringContent(content, Encoding.UTF8, "application/json")
         };

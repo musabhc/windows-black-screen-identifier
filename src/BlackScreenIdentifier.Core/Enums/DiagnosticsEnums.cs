@@ -41,5 +41,6 @@ public enum UpdateCheckStatus
     Unknown,
     UpToDate,
     UpdateAvailable,
+    NoPublishedRelease,
     Failed
 }

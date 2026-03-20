@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.IO;
 using System.Windows;
 using System.Windows.Media;
 using BlackScreenIdentifier.Core.Enums;
@@ -18,10 +19,21 @@ public sealed class MainViewModel : ObservableObject
     private readonly IExportBundleService exportBundleService;
 
     private DiagnosticSessionRecord? currentSession;
+    private DiagnosticSessionRecord? selectedSession;
+    private IncidentListItemViewModel? selectedIncidentItem;
+    private BootAttemptItemViewModel? selectedBootAttempt;
+    private SelectedIncidentViewModel selectedIncident = SelectedIncidentViewModel.Empty;
+    private CaptureStatusViewModel captureStatus = CaptureStatusViewModel.Empty;
+    private ExportStatusViewModel exportStatus = ExportStatusViewModel.Empty;
     private string statusText = "Hazır";
-    private string updateStatusText = "Sürüm kontrolü bekliyor";
+    private string updateStatusText = "Henüz kontrol edilmedi";
+    private string updateBadgeText = "Bekleniyor";
+    private Brush updateAccentBrush = Brushes.SlateGray;
     private string versionText = "v0.1.0";
-    private string machineDescriptor = "Makine bilgisi okunuyor";
+    private string machineDescriptor = "Makine bilgisi bekleniyor";
+    private int selectedDetailTabIndex;
+    private string? lastExportedSessionId;
+    private string lastExportPath = string.Empty;
 
     public MainViewModel(
         IDiagnosticCollector collector,
@@ -41,16 +53,16 @@ public sealed class MainViewModel : ObservableObject
         QuickScanCommand = new AsyncRelayCommand(_ => RefreshAsync(SnapshotCollectionLevel.Quick));
         DeepScanCommand = new AsyncRelayCommand(_ => RefreshAsync(SnapshotCollectionLevel.Deep));
         CheckUpdatesCommand = new AsyncRelayCommand(_ => CheckUpdatesAsync(showMessage: true));
-        ExportBundleCommand = new AsyncRelayCommand(_ => ExportBundleAsync(), _ => currentSession is not null);
+        ExportBundleCommand = new AsyncRelayCommand(_ => ExportBundleAsync(), _ => GetExportSession() is not null);
         ApplyActionCommand = new AsyncRelayCommand(ApplyActionAsync);
         RollbackActionCommand = new AsyncRelayCommand(RollbackActionAsync);
     }
 
-    public ObservableCollection<SummaryCardItem> SummaryCards { get; } = [];
+    public ObservableCollection<IncidentListItemViewModel> IncidentHistory { get; } = [];
     public ObservableCollection<FindingItemViewModel> Findings { get; } = [];
     public ObservableCollection<ActionItemViewModel> Actions { get; } = [];
     public ObservableCollection<BootAttemptItemViewModel> BootAttempts { get; } = [];
-    public ObservableCollection<SessionItemViewModel> Sessions { get; } = [];
+    public ObservableCollection<EvidenceGroupViewModel> EvidenceGroups { get; } = [];
 
     public AsyncRelayCommand QuickScanCommand { get; }
     public AsyncRelayCommand DeepScanCommand { get; }
@@ -58,6 +70,48 @@ public sealed class MainViewModel : ObservableObject
     public AsyncRelayCommand ExportBundleCommand { get; }
     public AsyncRelayCommand ApplyActionCommand { get; }
     public AsyncRelayCommand RollbackActionCommand { get; }
+
+    public IncidentListItemViewModel? SelectedIncidentItem
+    {
+        get => selectedIncidentItem;
+        set
+        {
+            if (SetProperty(ref selectedIncidentItem, value))
+            {
+                ApplySelectedSession(value?.Session);
+            }
+        }
+    }
+
+    public BootAttemptItemViewModel? SelectedBootAttempt
+    {
+        get => selectedBootAttempt;
+        set
+        {
+            if (SetProperty(ref selectedBootAttempt, value))
+            {
+                RefreshEvidenceGroups();
+            }
+        }
+    }
+
+    public SelectedIncidentViewModel SelectedIncident
+    {
+        get => selectedIncident;
+        private set => SetProperty(ref selectedIncident, value);
+    }
+
+    public CaptureStatusViewModel CaptureStatus
+    {
+        get => captureStatus;
+        private set => SetProperty(ref captureStatus, value);
+    }
+
+    public ExportStatusViewModel ExportStatus
+    {
+        get => exportStatus;
+        private set => SetProperty(ref exportStatus, value);
+    }
 
     public string StatusText
     {
@@ -71,6 +125,18 @@ public sealed class MainViewModel : ObservableObject
         private set => SetProperty(ref updateStatusText, value);
     }
 
+    public string UpdateBadgeText
+    {
+        get => updateBadgeText;
+        private set => SetProperty(ref updateBadgeText, value);
+    }
+
+    public Brush UpdateAccentBrush
+    {
+        get => updateAccentBrush;
+        private set => SetProperty(ref updateAccentBrush, value);
+    }
+
     public string VersionText
     {
         get => versionText;
@@ -81,6 +147,12 @@ public sealed class MainViewModel : ObservableObject
     {
         get => machineDescriptor;
         private set => SetProperty(ref machineDescriptor, value);
+    }
+
+    public int SelectedDetailTabIndex
+    {
+        get => selectedDetailTabIndex;
+        set => SetProperty(ref selectedDetailTabIndex, value);
     }
 
     public async Task InitializeAsync()
@@ -109,9 +181,9 @@ public sealed class MainViewModel : ObservableObject
             };
 
             await stateStore.SaveSessionAsync(currentSession, CancellationToken.None).ConfigureAwait(true);
-            await LoadRecentSessionsAsync().ConfigureAwait(true);
+            var recentSessions = await stateStore.GetRecentSessionsAsync(10, CancellationToken.None).ConfigureAwait(true);
+            RenderSessionCollections(recentSessions, currentSession.SessionId);
 
-            RenderSnapshot(currentSession);
             StatusText = $"Son tarama: {currentSession.CreatedAt:dd.MM.yyyy HH:mm:ss}";
         }
         catch (Exception ex)
@@ -125,6 +197,15 @@ public sealed class MainViewModel : ObservableObject
     {
         var info = await updateService.CheckAsync(CancellationToken.None).ConfigureAwait(true);
         UpdateStatusText = info.StatusMessage;
+        UpdateBadgeText = info.Status switch
+        {
+            UpdateCheckStatus.UpToDate => "Güncel",
+            UpdateCheckStatus.UpdateAvailable => "Yeni sürüm",
+            UpdateCheckStatus.NoPublishedRelease => "Stable yok",
+            UpdateCheckStatus.Failed => "Kontrol başarısız",
+            _ => "Bilinmiyor"
+        };
+        UpdateAccentBrush = PresentationPalette.ForUpdate(info.Status);
         VersionText = $"v{info.CurrentVersion}";
 
         if (showMessage)
@@ -135,12 +216,19 @@ public sealed class MainViewModel : ObservableObject
 
     private async Task ExportBundleAsync()
     {
-        if (currentSession is null)
+        var session = GetExportSession();
+        if (session is null)
         {
             return;
         }
 
-        var path = await exportBundleService.ExportAsync(currentSession, CancellationToken.None).ConfigureAwait(true);
+        var path = await exportBundleService.ExportAsync(session, CancellationToken.None).ConfigureAwait(true);
+        lastExportPath = path;
+        lastExportedSessionId = session.SessionId;
+        ExportStatus = ExportStatusViewModel.FromSession(session, lastExportedSessionId, lastExportPath);
+        StatusText = $"Tanı paketi oluşturuldu: {Path.GetFileName(path)}";
+        ExportBundleCommand.RaiseCanExecuteChanged();
+
         MessageBox.Show($"Tanı paketi oluşturuldu:\n{path}", "Export tamamlandı", MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
@@ -151,11 +239,12 @@ public sealed class MainViewModel : ObservableObject
             return;
         }
 
-        if (action.RequiresElevation && currentSession?.Snapshot.IsElevated != true)
+        if (action.RequiresElevation && !(currentSession?.Snapshot.IsElevated ?? selectedSession?.Snapshot.IsElevated ?? false))
         {
             var exitCode = await RunElevatedProcessAsync($"--apply {action.Id}").ConfigureAwait(true);
             if (exitCode == 0)
             {
+                SelectedDetailTabIndex = 2;
                 await RefreshAsync(SnapshotCollectionLevel.Deep).ConfigureAwait(true);
             }
 
@@ -164,6 +253,7 @@ public sealed class MainViewModel : ObservableObject
 
         var result = await remediationService.ApplyAsync(action.Id, CancellationToken.None).ConfigureAwait(true);
         MessageBox.Show(result.Message, action.Title, MessageBoxButton.OK, result.Succeeded ? MessageBoxImage.Information : MessageBoxImage.Warning);
+        SelectedDetailTabIndex = 2;
         await RefreshAsync(SnapshotCollectionLevel.Deep).ConfigureAwait(true);
     }
 
@@ -174,11 +264,12 @@ public sealed class MainViewModel : ObservableObject
             return;
         }
 
-        if (action.RequiresElevation && currentSession?.Snapshot.IsElevated != true)
+        if (action.RequiresElevation && !(currentSession?.Snapshot.IsElevated ?? selectedSession?.Snapshot.IsElevated ?? false))
         {
             var exitCode = await RunElevatedProcessAsync($"--rollback {action.Id}").ConfigureAwait(true);
             if (exitCode == 0)
             {
+                SelectedDetailTabIndex = 2;
                 await RefreshAsync(SnapshotCollectionLevel.Deep).ConfigureAwait(true);
             }
 
@@ -187,6 +278,7 @@ public sealed class MainViewModel : ObservableObject
 
         var result = await remediationService.RollbackAsync(action.Id, CancellationToken.None).ConfigureAwait(true);
         MessageBox.Show(result.Message, $"{action.Title} rollback", MessageBoxButton.OK, result.Succeeded ? MessageBoxImage.Information : MessageBoxImage.Warning);
+        SelectedDetailTabIndex = 2;
         await RefreshAsync(SnapshotCollectionLevel.Deep).ConfigureAwait(true);
     }
 
@@ -218,44 +310,89 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
-    private void RenderSnapshot(DiagnosticSessionRecord session)
+    private void RenderSessionCollections(IReadOnlyList<DiagnosticSessionRecord> sessions, string preferredSessionId)
     {
-        MachineDescriptor = $"{session.Snapshot.SystemManufacturer} {session.Snapshot.SystemModel}".Trim();
+        var orderedSessions = sessions
+            .OrderByDescending(session => session.CreatedAt)
+            .ToList();
 
-        SummaryCards.Clear();
-        SummaryCards.Add(new SummaryCardItem("Birincil Aday", session.Findings.FirstOrDefault()?.Title ?? "Kanıt toplanıyor", "En yüksek güvenli bulgu", Brushes.DarkSlateBlue));
-        SummaryCards.Add(new SummaryCardItem("Boot Denemeleri", session.Snapshot.BootAttempts.Count.ToString(), session.Snapshot.BootAttempts.FirstOrDefault()?.Summary ?? "Korelasyon yok", Brushes.DarkGoldenrod));
-        SummaryCards.Add(new SummaryCardItem("Dump Kapsamı", session.Snapshot.CrashDumpSettings.HasMinidumps || session.Snapshot.CrashDumpSettings.HasMemoryDumpFile ? "Hazır" : "Yetersiz", "Cold-boot dump’a bağımlı değil; capture önerilir", Brushes.DarkCyan));
-        SummaryCards.Add(new SummaryCardItem("Capture Durumu", session.Snapshot.CaptureState.IsArmed ? "Kurulu" : "Pasif", session.Snapshot.CaptureState.IsArmed ? "Sonraki boot ingest bekleniyor" : "Rehberli boot capture hazır", Brushes.IndianRed));
+        IncidentHistory.Clear();
+        foreach (var session in orderedSessions)
+        {
+            IncidentHistory.Add(IncidentListItemViewModel.FromSession(session));
+        }
+
+        SelectedIncidentItem = IncidentHistory.FirstOrDefault(item => item.Session.SessionId == preferredSessionId)
+            ?? IncidentHistory.FirstOrDefault();
+
+        ExportBundleCommand.RaiseCanExecuteChanged();
+    }
+
+    private void ApplySelectedSession(DiagnosticSessionRecord? session)
+    {
+        selectedSession = session;
+        MachineDescriptor = session is null
+            ? "Makine bilgisi bekleniyor"
+            : $"{session.Snapshot.SystemManufacturer} {session.Snapshot.SystemModel}".Trim();
 
         Findings.Clear();
+        Actions.Clear();
+        BootAttempts.Clear();
+
+        if (session is null)
+        {
+            SelectedIncident = SelectedIncidentViewModel.Empty;
+            CaptureStatus = CaptureStatusViewModel.Empty;
+            ExportStatus = ExportStatusViewModel.Empty;
+            SelectedBootAttempt = null;
+            RefreshEvidenceGroups();
+            ExportBundleCommand.RaiseCanExecuteChanged();
+            return;
+        }
+
+        SelectedIncident = SelectedIncidentViewModel.FromSession(session);
         foreach (var finding in session.Findings)
         {
             Findings.Add(FindingItemViewModel.FromFinding(finding));
         }
 
-        Actions.Clear();
         foreach (var action in session.Actions)
         {
             Actions.Add(ActionItemViewModel.FromDescriptor(action));
         }
 
-        BootAttempts.Clear();
-        foreach (var attempt in session.Snapshot.BootAttempts.Take(6))
+        foreach (var attempt in session.Snapshot.BootAttempts.Take(12))
         {
             BootAttempts.Add(BootAttemptItemViewModel.FromAttempt(attempt));
         }
+
+        CaptureStatus = CaptureStatusViewModel.FromSession(session);
+        ExportStatus = ExportStatusViewModel.FromSession(session, lastExportedSessionId, lastExportPath);
+        SelectedBootAttempt = BootAttempts.FirstOrDefault();
+        if (SelectedBootAttempt is null)
+        {
+            RefreshEvidenceGroups();
+        }
+
+        ExportBundleCommand.RaiseCanExecuteChanged();
     }
 
-    private async Task LoadRecentSessionsAsync()
+    private void RefreshEvidenceGroups()
     {
-        var sessions = await stateStore.GetRecentSessionsAsync(6, CancellationToken.None).ConfigureAwait(true);
-        Sessions.Clear();
-        foreach (var session in sessions)
+        EvidenceGroups.Clear();
+        if (selectedSession is null)
         {
-            Sessions.Add(new SessionItemViewModel(
-                session.CreatedAt.ToString("dd.MM.yyyy HH:mm"),
-                $"{session.Findings.Count} bulgu, {session.Actions.Count} aksiyon, {session.Snapshot.BootAttempts.Count} boot denemesi"));
+            return;
         }
+
+        foreach (var group in EvidenceGroupViewModel.Build(selectedSession, SelectedBootAttempt))
+        {
+            EvidenceGroups.Add(group);
+        }
+    }
+
+    private DiagnosticSessionRecord? GetExportSession()
+    {
+        return selectedSession ?? currentSession ?? IncidentHistory.FirstOrDefault()?.Session;
     }
 }

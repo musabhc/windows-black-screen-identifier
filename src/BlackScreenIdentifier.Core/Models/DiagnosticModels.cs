@@ -99,7 +99,10 @@ public sealed class VersionInfo
     public string CurrentVersion { get; set; } = "0.0.0";
     public string LatestVersion { get; set; } = "0.0.0";
     public UpdateCheckStatus Status { get; set; } = UpdateCheckStatus.Unknown;
+    public string RepositoryUrl { get; set; } = string.Empty;
     public string ReleaseUrl { get; set; } = string.Empty;
+    public bool IsConfigured { get; set; }
+    public int? LastHttpStatusCode { get; set; }
     public DateTimeOffset? CheckedAt { get; set; }
     public string StatusMessage { get; set; } = string.Empty;
 }

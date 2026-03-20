@@ -3,9 +3,12 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
   </PropertyGroup>
 
   <ItemGroup>
+    <Using Include="System.IO" />
+
     <Compile Include="..\..\src\BlackScreenIdentifier.Core\**\*.cs"
              Exclude="..\..\src\BlackScreenIdentifier.Core\bin\**\*;..\..\src\BlackScreenIdentifier.Core\obj\**\*"
              LinkBase="Linked\Core" />
@@ -15,6 +18,9 @@
     <Compile Include="..\..\src\BlackScreenIdentifier.Actions\**\*.cs"
              Exclude="..\..\src\BlackScreenIdentifier.Actions\bin\**\*;..\..\src\BlackScreenIdentifier.Actions\obj\**\*"
              LinkBase="Linked\Actions" />
+    <Compile Include="..\..\src\BlackScreenIdentifier.App\ViewModels\**\*.cs"
+             Exclude="..\..\src\BlackScreenIdentifier.App\ViewModels\bin\**\*;..\..\src\BlackScreenIdentifier.App\ViewModels\obj\**\*"
+             LinkBase="Linked\App\ViewModels" />
   </ItemGroup>
 
 </Project>

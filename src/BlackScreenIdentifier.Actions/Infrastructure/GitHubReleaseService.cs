@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Net;
 using System.Net.Http;
 using System.Text.Json;
 using BlackScreenIdentifier.Core.Enums;
@@ -15,19 +16,43 @@ public sealed class GitHubReleaseService(HttpClient? httpClient = null) : IUpdat
     public async Task<VersionInfo> CheckAsync(CancellationToken cancellationToken)
     {
         var currentVersion = GetCurrentVersion();
+        var repositoryUrl = GetRepositoryUrl();
         var result = new VersionInfo
         {
             CurrentVersion = currentVersion,
             LatestVersion = currentVersion,
             Status = UpdateCheckStatus.Unknown,
-            CheckedAt = DateTimeOffset.Now
+            CheckedAt = DateTimeOffset.Now,
+            RepositoryUrl = repositoryUrl,
+            ReleaseUrl = $"{repositoryUrl}/releases",
+            IsConfigured = !string.IsNullOrWhiteSpace(repositoryUrl)
         };
+
+        if (!result.IsConfigured)
+        {
+            result.StatusMessage = "Sürüm deposu yapılandırılmadı.";
+            return result;
+        }
 
         try
         {
             var url = $"https://api.github.com/repos/{ApplicationMetadata.RepositoryOwner}/{ApplicationMetadata.RepositoryName}/releases/latest";
             using var response = await client.GetAsync(url, cancellationToken).ConfigureAwait(false);
-            response.EnsureSuccessStatusCode();
+            result.LastHttpStatusCode = (int)response.StatusCode;
+
+            if (response.StatusCode == HttpStatusCode.NotFound)
+            {
+                result.Status = UpdateCheckStatus.NoPublishedRelease;
+                result.StatusMessage = "Henüz yayınlanmış stable sürüm yok.";
+                return result;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                result.Status = UpdateCheckStatus.Failed;
+                result.StatusMessage = $"Sürüm kontrolü şu anda kullanılamıyor ({(int)response.StatusCode}).";
+                return result;
+            }
 
             await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
             using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
@@ -51,10 +76,29 @@ public sealed class GitHubReleaseService(HttpClient? httpClient = null) : IUpdat
                 result.StatusMessage = $"Sürüm bilgisi okundu: {latest}";
             }
         }
+        catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            result.Status = UpdateCheckStatus.Failed;
+            result.StatusMessage = "Sürüm kontrolü zaman aşımına uğradı.";
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+        {
+            result.Status = UpdateCheckStatus.NoPublishedRelease;
+            result.LastHttpStatusCode = (int)HttpStatusCode.NotFound;
+            result.StatusMessage = "Henüz yayınlanmış stable sürüm yok.";
+        }
+        catch (HttpRequestException ex)
+        {
+            result.Status = UpdateCheckStatus.Failed;
+            result.LastHttpStatusCode = ex.StatusCode is null ? null : (int)ex.StatusCode.Value;
+            result.StatusMessage = ex.StatusCode is null
+                ? "Sürüm kontrolü şu anda kullanılamıyor."
+                : $"Sürüm kontrolü şu anda kullanılamıyor ({(int)ex.StatusCode.Value}).";
+        }
         catch (Exception ex)
         {
             result.Status = UpdateCheckStatus.Failed;
-            result.StatusMessage = $"Sürüm kontrolü başarısız: {ex.Message}";
+            result.StatusMessage = $"Sürüm kontrolü başarısız oldu: {ex.Message}";
         }
 
         return result;
@@ -84,5 +128,16 @@ public sealed class GitHubReleaseService(HttpClient? httpClient = null) : IUpdat
     {
         var cleaned = value.Trim().TrimStart('v', 'V');
         return Version.TryParse(cleaned, out version!);
+    }
+
+    private static string GetRepositoryUrl()
+    {
+        if (string.IsNullOrWhiteSpace(ApplicationMetadata.RepositoryOwner) ||
+            string.IsNullOrWhiteSpace(ApplicationMetadata.RepositoryName))
+        {
+            return string.Empty;
+        }
+
+        return $"https://github.com/{ApplicationMetadata.RepositoryOwner}/{ApplicationMetadata.RepositoryName}";
     }
 }

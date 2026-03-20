@@ -5,43 +5,34 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
         Title="Black Screen Identifier"
-        Width="1520"
-        Height="980"
-        MinWidth="1280"
-        MinHeight="820"
+        Width="1380"
+        Height="860"
+        MinWidth="1120"
+        MinHeight="720"
         Background="{StaticResource WindowBackgroundBrush}">
-    <Grid Margin="28">
+    <Grid Margin="18">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <Border Style="{StaticResource HeroBorderStyle}">
+        <Border Grid.Row="0" Style="{StaticResource TopBarBorderStyle}">
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="2.4*" />
+                    <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
                 <StackPanel>
-                    <TextBlock Text="Black Screen Identifier" Style="{StaticResource HeroTitleStyle}" />
-                    <TextBlock Margin="0,10,0,0"
-                               Text="Cold-boot siyah ekranını pasif loglarla, boot seanslarıyla ve rehberli sonraki açılış capture akışıyla teşhis eder."
+                    <TextBlock Text="Black Screen Identifier" Style="{StaticResource WindowTitleStyle}" />
+                    <TextBlock Margin="0,6,0,0"
+                               Text="Cold-boot siyah ekranı için masaüstü tanı çalışma alanı. Son incident, boot sinyalleri ve düzeltmeler tek görünümde tutulur."
                                Style="{StaticResource HeroSubtitleStyle}" />
-                    <StackPanel Margin="0,18,0,0" Orientation="Horizontal">
-                        <Border Style="{StaticResource PillStyle}">
-                            <TextBlock Text="{Binding StatusText}" Style="{StaticResource PillTextStyle}" />
-                        </Border>
-                        <Border Margin="10,0,0,0" Style="{StaticResource PillStyle}">
-                            <TextBlock Text="{Binding UpdateStatusText}" Style="{StaticResource PillTextStyle}" />
-                        </Border>
-                    </StackPanel>
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" HorizontalAlignment="Right">
-                    <TextBlock HorizontalAlignment="Right" Text="{Binding VersionText}" Style="{StaticResource MetaLabelStyle}" />
-                    <TextBlock Margin="0,6,0,20"
+                    <TextBlock HorizontalAlignment="Right" Text="{Binding VersionText}" Style="{StaticResource CaptionStyle}" />
+                    <TextBlock Margin="0,4,0,10"
                                HorizontalAlignment="Right"
                                Text="{Binding MachineDescriptor}"
                                Style="{StaticResource MetaValueStyle}" />
@@ -55,172 +46,327 @@
             </Grid>
         </Border>
 
-        <ItemsControl Grid.Row="1" Margin="0,20,0,20" ItemsSource="{Binding SummaryCards}">
-            <ItemsControl.ItemsPanel>
-                <ItemsPanelTemplate>
-                    <WrapPanel />
-                </ItemsPanelTemplate>
-            </ItemsControl.ItemsPanel>
-            <ItemsControl.ItemTemplate>
-                <DataTemplate>
-                    <Border Width="340" Margin="0,0,18,18" Padding="20" Style="{StaticResource CardBorderStyle}">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                            </Grid.RowDefinitions>
-                            <Border Width="14" Height="14" HorizontalAlignment="Right" CornerRadius="7" Background="{Binding AccentBrush}" />
-                            <TextBlock Text="{Binding Label}" Style="{StaticResource CardLabelStyle}" />
-                            <TextBlock Grid.Row="1" Margin="0,10,0,0" Text="{Binding Value}" Style="{StaticResource CardValueStyle}" />
-                            <TextBlock Grid.Row="2" Margin="0,8,0,0" Text="{Binding Subtitle}" Style="{StaticResource CardBodyStyle}" TextWrapping="Wrap" />
-                        </Grid>
-                    </Border>
-                </DataTemplate>
-            </ItemsControl.ItemTemplate>
-        </ItemsControl>
+        <Grid Grid.Row="1" Margin="0,14,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="320" />
+                <ColumnDefinition Width="8" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
 
-        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="1.32*" />
-                    <ColumnDefinition Width="1*" />
-                </Grid.ColumnDefinitions>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                </Grid.RowDefinitions>
-
-                <Border Grid.Row="0" Grid.Column="0" Margin="0,0,18,18" Style="{StaticResource CardBorderStyle}">
+            <Border Grid.Column="0" Style="{StaticResource SidebarBorderStyle}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel>
-                        <TextBlock Text="Bulgular ve Güven Skoru" Style="{StaticResource SectionTitleStyle}" />
-                        <ItemsControl Margin="0,16,0,0" ItemsSource="{Binding Findings}">
-                            <ItemsControl.ItemTemplate>
+                        <Border Style="{StaticResource MutedPanelBorderStyle}">
+                            <StackPanel>
+                                <TextBlock Text="Son Incident" Style="{StaticResource SectionTitleStyle}" />
+                                <TextBlock Margin="0,10,0,0" Text="{Binding SelectedIncident.Title}" Style="{StaticResource ItemTitleStyle}" />
+                                <TextBlock Margin="0,6,0,0" Text="{Binding SelectedIncident.Subtitle}" Style="{StaticResource CaptionStyle}" />
+                                <TextBlock Margin="0,10,0,0" Text="{Binding SelectedIncident.PrimarySummary}" Style="{StaticResource BodyTextStyle}" />
+                                <WrapPanel Margin="0,12,0,0">
+                                    <Border Style="{StaticResource PillStyle}">
+                                        <TextBlock Text="{Binding SelectedIncident.ConfidenceLabel}" Style="{StaticResource PillTextStyle}" />
+                                    </Border>
+                                    <Border Margin="8,0,0,0" Style="{StaticResource PillStyle}">
+                                        <TextBlock Text="{Binding SelectedIncident.CollectionLabel}" Style="{StaticResource PillTextStyle}" />
+                                    </Border>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <TextBlock Margin="0,16,0,8" Text="Boot Denemeleri" Style="{StaticResource SectionTitleStyle}" />
+                        <ListBox ItemsSource="{Binding BootAttempts}"
+                                 SelectedItem="{Binding SelectedBootAttempt}"
+                                 MaxHeight="220"
+                                 Style="{StaticResource DesktopListBoxStyle}"
+                                 ItemContainerStyle="{StaticResource DesktopListBoxItemStyle}">
+                            <ListBox.ItemTemplate>
                                 <DataTemplate>
-                                    <Border Margin="0,0,0,14" Padding="18" CornerRadius="18" Background="{StaticResource InnerCardBrush}">
+                                    <Border Padding="10" BorderBrush="{StaticResource SoftBorderBrush}" BorderThickness="1" CornerRadius="10">
                                         <Grid>
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="8" />
+                                                <ColumnDefinition Width="5" />
                                                 <ColumnDefinition Width="*" />
                                             </Grid.ColumnDefinitions>
-                                            <Border Width="8" CornerRadius="4" Background="{Binding AccentBrush}" />
-                                            <StackPanel Grid.Column="1" Margin="16,0,0,0">
-                                                <WrapPanel>
-                                                    <TextBlock Text="{Binding Title}" Style="{StaticResource ItemTitleStyle}" />
-                                                    <Border Margin="10,0,0,0" Style="{StaticResource TagStyle}">
-                                                        <TextBlock Text="{Binding SeverityLabel}" Style="{StaticResource TagTextStyle}" />
-                                                    </Border>
-                                                    <Border Margin="8,0,0,0" Style="{StaticResource TagStyle}">
-                                                        <TextBlock Text="{Binding ConfidenceLabel}" Style="{StaticResource TagTextStyle}" />
-                                                    </Border>
-                                                </WrapPanel>
-                                                <TextBlock Margin="0,10,0,0" Text="{Binding Summary}" Style="{StaticResource CardBodyStyle}" TextWrapping="Wrap" />
-                                                <TextBlock Margin="0,10,0,0" Text="{Binding WhyItMatters}" Style="{StaticResource MetaLabelStyle}" TextWrapping="Wrap" />
-                                                <ItemsControl Margin="0,12,0,0" ItemsSource="{Binding EvidenceLines}">
-                                                    <ItemsControl.ItemTemplate>
-                                                        <DataTemplate>
-                                                            <TextBlock Margin="0,0,0,4" Text="{Binding}" Style="{StaticResource ListLineStyle}" TextWrapping="Wrap" />
-                                                        </DataTemplate>
-                                                    </ItemsControl.ItemTemplate>
-                                                </ItemsControl>
+                                            <Border Background="{Binding AccentBrush}" CornerRadius="3" />
+                                            <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                                                <TextBlock Text="{Binding Label}" Style="{StaticResource ItemTitleStyle}" />
+                                                <TextBlock Margin="0,4,0,0" Text="{Binding StartedAt}" Style="{StaticResource CaptionStyle}" />
+                                                <TextBlock Margin="0,6,0,0" Text="{Binding Summary}" Style="{StaticResource BodyTextStyle}" />
                                             </StackPanel>
                                         </Grid>
                                     </Border>
                                 </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </StackPanel>
-                </Border>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
 
-                <Border Grid.Row="1" Grid.Column="0" Margin="0,0,18,18" Style="{StaticResource CardBorderStyle}">
-                    <StackPanel>
-                        <TextBlock Text="Düzeltmeler ve Geri Alma" Style="{StaticResource SectionTitleStyle}" />
-                        <ItemsControl Margin="0,16,0,0" ItemsSource="{Binding Actions}">
+                        <TextBlock Margin="0,16,0,8" Text="Önerilen Eylemler" Style="{StaticResource SectionTitleStyle}" />
+                        <ItemsControl ItemsSource="{Binding Actions}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Border Margin="0,0,0,14" Padding="18" CornerRadius="18" Background="{StaticResource InnerCardBrush}">
+                                    <Border Margin="0,0,0,8" Padding="10" Style="{StaticResource PanelBorderStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Title}" Style="{StaticResource ItemTitleStyle}" />
+                                            <TextBlock Margin="0,4,0,0" Text="{Binding Summary}" Style="{StaticResource BodyTextStyle}" />
+                                            <TextBlock Margin="0,4,0,0" Text="{Binding RequirementLabel}" Style="{StaticResource CaptionStyle}" />
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <TextBlock Margin="0,16,0,8" Text="Oturumlar" Style="{StaticResource SectionTitleStyle}" />
+                        <ListBox ItemsSource="{Binding IncidentHistory}"
+                                 SelectedItem="{Binding SelectedIncidentItem}"
+                                 Style="{StaticResource DesktopListBoxStyle}"
+                                 ItemContainerStyle="{StaticResource DesktopListBoxItemStyle}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Padding="10" BorderBrush="{StaticResource SoftBorderBrush}" BorderThickness="1" CornerRadius="10">
                                         <Grid>
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="Auto" />
-                                                <RowDefinition Height="Auto" />
-                                                <RowDefinition Height="Auto" />
-                                            </Grid.RowDefinitions>
-                                            <WrapPanel>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="5" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <Border Background="{Binding AccentBrush}" CornerRadius="3" />
+                                            <StackPanel Grid.Column="1" Margin="10,0,0,0">
                                                 <TextBlock Text="{Binding Title}" Style="{StaticResource ItemTitleStyle}" />
-                                                <Border Margin="10,0,0,0" Style="{StaticResource TagStyle}">
-                                                    <TextBlock Text="{Binding RiskLabel}" Style="{StaticResource TagTextStyle}" />
-                                                </Border>
-                                                <Border Margin="8,0,0,0" Style="{StaticResource TagStyle}">
-                                                    <TextBlock Text="{Binding RequirementLabel}" Style="{StaticResource TagTextStyle}" />
-                                                </Border>
-                                            </WrapPanel>
-                                            <TextBlock Grid.Row="1" Margin="0,10,0,0" Text="{Binding Preview}" Style="{StaticResource CardBodyStyle}" TextWrapping="Wrap" />
-                                            <WrapPanel Grid.Row="2" Margin="0,16,0,0">
-                                                <Button Command="{Binding DataContext.ApplyActionCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                        CommandParameter="{Binding}"
-                                                        Content="Uygula"
-                                                        Style="{StaticResource PrimaryButtonStyle}" />
-                                                <Button Command="{Binding DataContext.RollbackActionCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                        CommandParameter="{Binding}"
-                                                        Content="Geri Al"
-                                                        Style="{StaticResource SecondaryButtonStyle}" />
-                                            </WrapPanel>
+                                                <TextBlock Margin="0,4,0,0" Text="{Binding PrimaryFinding}" Style="{StaticResource BodyTextStyle}" />
+                                                <TextBlock Margin="0,4,0,0" Text="{Binding Subtitle}" Style="{StaticResource CaptionStyle}" />
+                                                <TextBlock Margin="0,4,0,0" Text="{Binding StatusLabel}" Style="{StaticResource CaptionStyle}" />
+                                            </StackPanel>
                                         </Grid>
                                     </Border>
                                 </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
                     </StackPanel>
-                </Border>
+                </ScrollViewer>
+            </Border>
 
-                <Border Grid.Row="0" Grid.Column="1" Margin="0,0,0,18" Style="{StaticResource CardBorderStyle}">
-                    <StackPanel>
-                        <TextBlock Text="Boot Denemeleri" Style="{StaticResource SectionTitleStyle}" />
-                        <ItemsControl Margin="0,16,0,0" ItemsSource="{Binding BootAttempts}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Border Margin="0,0,0,14" Padding="18" CornerRadius="18" Background="{StaticResource InnerCardBrush}">
-                                        <StackPanel>
-                                            <WrapPanel>
-                                                <TextBlock Text="{Binding Label}" Style="{StaticResource ItemTitleStyle}" />
-                                                <Border Margin="10,0,0,0" Style="{StaticResource TagStyle}">
-                                                    <TextBlock Text="{Binding StartedAt}" Style="{StaticResource TagTextStyle}" />
-                                                </Border>
-                                            </WrapPanel>
-                                            <TextBlock Margin="0,8,0,0" Text="{Binding Summary}" Style="{StaticResource CardBodyStyle}" TextWrapping="Wrap" />
-                                            <ItemsControl Margin="0,12,0,0" ItemsSource="{Binding Highlights}">
-                                                <ItemsControl.ItemTemplate>
-                                                    <DataTemplate>
-                                                        <TextBlock Margin="0,0,0,4" Text="{Binding}" Style="{StaticResource ListLineStyle}" TextWrapping="Wrap" />
-                                                    </DataTemplate>
-                                                </ItemsControl.ItemTemplate>
-                                            </ItemsControl>
-                                        </StackPanel>
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </StackPanel>
-                </Border>
+            <GridSplitter Grid.Column="1"
+                          HorizontalAlignment="Stretch"
+                          VerticalAlignment="Stretch"
+                          Background="{StaticResource SoftBorderBrush}" />
 
-                <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource CardBorderStyle}">
-                    <StackPanel>
-                        <TextBlock Text="Oturum Geçmişi" Style="{StaticResource SectionTitleStyle}" />
-                        <ItemsControl Margin="0,16,0,0" ItemsSource="{Binding Sessions}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Border Margin="0,0,0,12" Padding="16" CornerRadius="16" Background="{StaticResource InnerCardBrush}">
-                                        <StackPanel>
-                                            <TextBlock Text="{Binding Title}" Style="{StaticResource ItemTitleStyle}" />
-                                            <TextBlock Margin="0,6,0,0" Text="{Binding Subtitle}" Style="{StaticResource CardBodyStyle}" TextWrapping="Wrap" />
-                                        </StackPanel>
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </StackPanel>
-                </Border>
-            </Grid>
-        </ScrollViewer>
+            <Border Grid.Column="2" Style="{StaticResource DetailBorderStyle}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0" Style="{StaticResource MutedPanelBorderStyle}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="2.2*" />
+                                <ColumnDefinition Width="1*" />
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel>
+                                <TextBlock Text="{Binding SelectedIncident.PrimaryFinding}" Style="{StaticResource WindowTitleStyle}" />
+                                <TextBlock Margin="0,6,0,0" Text="{Binding SelectedIncident.Subtitle}" Style="{StaticResource CaptionStyle}" />
+                                <TextBlock Margin="0,12,0,0" Text="{Binding SelectedIncident.PrimarySummary}" Style="{StaticResource BodyTextStyle}" />
+                                <TextBlock Margin="0,8,0,0" Text="{Binding SelectedIncident.WhyItMatters}" Style="{StaticResource BodyTextStyle}" />
+                                <ItemsControl Margin="0,12,0,0" ItemsSource="{Binding SelectedIncident.Facts}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Margin="0,0,8,8" Style="{StaticResource PillStyle}">
+                                                <TextBlock Text="{Binding}" Style="{StaticResource PillTextStyle}" />
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="1" Margin="18,0,0,0">
+                                <Border Margin="0,0,0,8" Style="{StaticResource PanelBorderStyle}">
+                                    <StackPanel>
+                                        <TextBlock Text="Tarama Durumu" Style="{StaticResource SectionTitleStyle}" />
+                                        <TextBlock Margin="0,6,0,0" Text="{Binding StatusText}" Style="{StaticResource BodyTextStyle}" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Margin="0,0,0,8" Style="{StaticResource PanelBorderStyle}">
+                                    <StackPanel>
+                                        <TextBlock Text="Sürüm Durumu" Style="{StaticResource SectionTitleStyle}" />
+                                        <WrapPanel Margin="0,6,0,0">
+                                            <Border Background="{Binding UpdateAccentBrush}" CornerRadius="8" Padding="8,3">
+                                                <TextBlock Foreground="White" Text="{Binding UpdateBadgeText}" Style="{StaticResource PillTextStyle}" />
+                                            </Border>
+                                        </WrapPanel>
+                                        <TextBlock Margin="0,8,0,0" Text="{Binding UpdateStatusText}" Style="{StaticResource BodyTextStyle}" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{StaticResource PanelBorderStyle}">
+                                    <StackPanel>
+                                        <TextBlock Text="Dışa Aktar" Style="{StaticResource SectionTitleStyle}" />
+                                        <TextBlock Margin="0,6,0,0" Text="{Binding ExportStatus.StateLabel}" Style="{StaticResource MetaValueStyle}" />
+                                        <TextBlock Margin="0,6,0,0" Text="{Binding ExportStatus.Summary}" Style="{StaticResource BodyTextStyle}" />
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <TabControl Grid.Row="1"
+                                Margin="0,14,0,0"
+                                SelectedIndex="{Binding SelectedDetailTabIndex}"
+                                Style="{StaticResource TabControlStyle}">
+                        <TabItem Header="Teşhis" Style="{StaticResource TabItemStyle}">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <ItemsControl ItemsSource="{Binding Findings}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Margin="0,0,0,10" Style="{StaticResource PanelBorderStyle}">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="5" />
+                                                        <ColumnDefinition Width="*" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <Border Background="{Binding AccentBrush}" CornerRadius="3" />
+                                                    <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                                                        <WrapPanel>
+                                                            <TextBlock Text="{Binding Title}" Style="{StaticResource ItemTitleStyle}" />
+                                                            <Border Margin="8,0,0,0" Style="{StaticResource PillStyle}">
+                                                                <TextBlock Text="{Binding SeverityLabel}" Style="{StaticResource PillTextStyle}" />
+                                                            </Border>
+                                                            <Border Margin="8,0,0,0" Style="{StaticResource PillStyle}">
+                                                                <TextBlock Text="{Binding ConfidenceLabel}" Style="{StaticResource PillTextStyle}" />
+                                                            </Border>
+                                                        </WrapPanel>
+                                                        <TextBlock Margin="0,8,0,0" Text="{Binding Summary}" Style="{StaticResource BodyTextStyle}" />
+                                                        <TextBlock Margin="0,8,0,0" Text="{Binding WhyItMatters}" Style="{StaticResource BodyTextStyle}" />
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </TabItem>
+
+                        <TabItem Header="Kanıtlar" Style="{StaticResource TabItemStyle}">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <ItemsControl ItemsSource="{Binding EvidenceGroups}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Margin="0,0,0,10" Style="{StaticResource PanelBorderStyle}">
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding Title}" Style="{StaticResource ItemTitleStyle}" />
+                                                    <TextBlock Margin="0,4,0,0" Text="{Binding Summary}" Style="{StaticResource CaptionStyle}" />
+                                                    <ItemsControl Margin="0,10,0,0" ItemsSource="{Binding Lines}">
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <TextBlock Margin="0,0,0,6" Text="{Binding}" Style="{StaticResource BodyTextStyle}" />
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </TabItem>
+
+                        <TabItem Header="Düzeltmeler" Style="{StaticResource TabItemStyle}">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <ItemsControl ItemsSource="{Binding Actions}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Margin="0,0,0,10" Style="{StaticResource PanelBorderStyle}">
+                                                <Grid>
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="Auto" />
+                                                        <RowDefinition Height="Auto" />
+                                                        <RowDefinition Height="Auto" />
+                                                    </Grid.RowDefinitions>
+                                                    <WrapPanel>
+                                                        <TextBlock Text="{Binding Title}" Style="{StaticResource ItemTitleStyle}" />
+                                                        <Border Margin="8,0,0,0" Style="{StaticResource PillStyle}">
+                                                            <TextBlock Text="{Binding RiskLabel}" Style="{StaticResource PillTextStyle}" />
+                                                        </Border>
+                                                        <Border Margin="8,0,0,0" Style="{StaticResource PillStyle}">
+                                                            <TextBlock Text="{Binding RequirementLabel}" Style="{StaticResource PillTextStyle}" />
+                                                        </Border>
+                                                    </WrapPanel>
+                                                    <TextBlock Grid.Row="1" Margin="0,8,0,0" Text="{Binding Summary}" Style="{StaticResource BodyTextStyle}" />
+                                                    <TextBlock Grid.Row="1" Margin="0,28,0,0" Text="{Binding Preview}" Style="{StaticResource CaptionStyle}" />
+                                                    <WrapPanel Grid.Row="2" Margin="0,14,0,0">
+                                                        <Button Command="{Binding DataContext.ApplyActionCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                CommandParameter="{Binding}"
+                                                                Content="Uygula"
+                                                                Style="{StaticResource PrimaryButtonStyle}" />
+                                                        <Button Command="{Binding DataContext.RollbackActionCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                CommandParameter="{Binding}"
+                                                                Content="Geri Al"
+                                                                Style="{StaticResource SecondaryButtonStyle}" />
+                                                    </WrapPanel>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </TabItem>
+
+                        <TabItem Header="Capture" Style="{StaticResource TabItemStyle}">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <Border Style="{StaticResource PanelBorderStyle}">
+                                    <StackPanel>
+                                        <WrapPanel>
+                                            <TextBlock Text="{Binding CaptureStatus.Title}" Style="{StaticResource ItemTitleStyle}" />
+                                            <Border Margin="8,0,0,0" Background="{Binding CaptureStatus.AccentBrush}" CornerRadius="8" Padding="8,3">
+                                                <TextBlock Foreground="White" Text="{Binding CaptureStatus.StateLabel}" Style="{StaticResource PillTextStyle}" />
+                                            </Border>
+                                        </WrapPanel>
+                                        <TextBlock Margin="0,10,0,0" Text="{Binding CaptureStatus.Summary}" Style="{StaticResource BodyTextStyle}" />
+                                        <ItemsControl Margin="0,12,0,0" ItemsSource="{Binding CaptureStatus.DetailLines}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Margin="0,0,0,6" Text="{Binding}" Style="{StaticResource BodyTextStyle}" />
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Border>
+                            </ScrollViewer>
+                        </TabItem>
+
+                        <TabItem Header="Dışa Aktar" Style="{StaticResource TabItemStyle}">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <Border Style="{StaticResource PanelBorderStyle}">
+                                    <StackPanel>
+                                        <WrapPanel>
+                                            <TextBlock Text="{Binding ExportStatus.Title}" Style="{StaticResource ItemTitleStyle}" />
+                                            <Border Margin="8,0,0,0" Style="{StaticResource PillStyle}">
+                                                <TextBlock Text="{Binding ExportStatus.StateLabel}" Style="{StaticResource PillTextStyle}" />
+                                            </Border>
+                                        </WrapPanel>
+                                        <TextBlock Margin="0,10,0,0" Text="{Binding ExportStatus.Summary}" Style="{StaticResource BodyTextStyle}" />
+                                        <ItemsControl Margin="0,12,0,0" ItemsSource="{Binding ExportStatus.DetailLines}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Margin="0,0,0,6" Text="{Binding}" Style="{StaticResource BodyTextStyle}" />
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        <Button Margin="0,14,0,0"
+                                                Command="{Binding ExportBundleCommand}"
+                                                Content="{Binding ExportStatus.ButtonLabel}"
+                                                HorizontalAlignment="Left"
+                                                Style="{StaticResource PrimaryButtonStyle}" />
+                                    </StackPanel>
+                                </Border>
+                            </ScrollViewer>
+                        </TabItem>
+                    </TabControl>
+                </Grid>
+            </Border>
+        </Grid>
     </Grid>
 </Window>
